@@ -1,24 +1,17 @@
-name: Mobile-Build
+name: ShardTunnel-Turbo-Build
 on: [push, workflow_dispatch]
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: Fast Create and Build
+      
+      - name: Preparing Project
         run: |
-          # Создаем структуру за 1 секунду
           mkdir -p app/src/main/java/com/example/shardtunnel
           echo "include ':app'" > settings.gradle
-          echo "rootProject.name = 'ShardTunnel'" >> settings.gradle
-
-          # Минимальный файл сборки
+          
           cat <<EOF > build.gradle
           buildscript {
               repositories { google(); mavenCentral() }
@@ -37,11 +30,10 @@ jobs:
           dependencies { implementation 'androidx.appcompat:appcompat:1.6.1' }
           EOF
 
-          # Минимальный код, который точно скомпилируется
           cat <<EOF > app/src/main/AndroidManifest.xml
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-              <application android:label="ShardTunnel">
+              <application android:label="ShardTunnel" android:theme="@style/Theme.AppCompat.Light.NoActionBar">
                   <activity android:name=".MainActivity" android:exported="true">
                       <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
                   </activity>
@@ -52,16 +44,35 @@ jobs:
           </manifest>
           EOF
 
-          echo "package com.example.shardtunnel; import android.os.Bundle; import androidx.appcompat.app.AppCompatActivity; class MainActivity : AppCompatActivity() { override fun onCreate(s: Bundle?) { super.onCreate(s); setContentView(android.widget.TextView(this).apply { text = \"ShardTunnel Ready\" }) } }" > app/src/main/java/com/example/shardtunnel/MainActivity.kt
+          cat <<EOF > app/src/main/java/com/example/shardtunnel/MainActivity.kt
+          package com.example.shardtunnel
+          import android.os.Bundle
+          import android.widget.TextView
+          import androidx.appcompat.app.AppCompatActivity
+          class MainActivity : AppCompatActivity() {
+              override fun onCreate(s: Bundle?) {
+                  super.onCreate(s)
+                  setContentView(TextView(this).apply { text = "ShardTunnel: Готов к работе!"; textSize = 24f })
+              }
+          }
+          EOF
+
           echo "package com.example.shardtunnel; import android.net.VpnService; class MyVpnService : VpnService()" > app/src/main/java/com/example/shardtunnel/MyVpnService.kt
 
-          # Запуск сборки
+      - name: setup java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Final Assembly
+        run: |
           wget https://raw.githubusercontent.com/gradle/gradle/master/gradlew
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
 
-      - name: Upload APK
+      - name: Export APK
         uses: actions/upload-artifact@v4
         with:
-          name: ShardTunnel-App
+          name: ShardTunnel-Build
           path: app/build/outputs/apk/debug/app-debug.apk
