@@ -1,24 +1,24 @@
-name: Final Build
+name: Mobile-Build
 on: [push, workflow_dispatch]
-
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup Java
+      - name: set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Create App
+      - name: Fast Create and Build
         run: |
+          # Создаем структуру за 1 секунду
           mkdir -p app/src/main/java/com/example/shardtunnel
-          echo "rootProject.name = 'ShardTunnel'" > settings.gradle
-          echo "include ':app'" >> settings.gradle
-          
+          echo "include ':app'" > settings.gradle
+          echo "rootProject.name = 'ShardTunnel'" >> settings.gradle
+
+          # Минимальный файл сборки
           cat <<EOF > build.gradle
           buildscript {
               repositories { google(); mavenCentral() }
@@ -37,6 +37,7 @@ jobs:
           dependencies { implementation 'androidx.appcompat:appcompat:1.6.1' }
           EOF
 
+          # Минимальный код, который точно скомпилируется
           cat <<EOF > app/src/main/AndroidManifest.xml
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
@@ -51,14 +52,13 @@ jobs:
           </manifest>
           EOF
 
-          echo "package com.example.shardtunnel; import android.os.Bundle; import androidx.appcompat.app.AppCompatActivity; class MainActivity : AppCompatActivity() { override fun onCreate(s: Bundle?) { super.onCreate(s) } }" > app/src/main/java/com/example/shardtunnel/MainActivity.kt
+          echo "package com.example.shardtunnel; import android.os.Bundle; import androidx.appcompat.app.AppCompatActivity; class MainActivity : AppCompatActivity() { override fun onCreate(s: Bundle?) { super.onCreate(s); setContentView(android.widget.TextView(this).apply { text = \"ShardTunnel Ready\" }) } }" > app/src/main/java/com/example/shardtunnel/MainActivity.kt
           echo "package com.example.shardtunnel; import android.net.VpnService; class MyVpnService : VpnService()" > app/src/main/java/com/example/shardtunnel/MyVpnService.kt
 
-      - name: Build with Gradle
-        run: |
-          curl -s "https://raw.githubusercontent.com/gradle/gradle/master/gradlew" > gradlew
+          # Запуск сборки
+          wget https://raw.githubusercontent.com/gradle/gradle/master/gradlew
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
+          ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
