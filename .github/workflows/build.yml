@@ -1,15 +1,19 @@
-name: ShardTunnel-Turbo-Build
+name: ShardTunnel-Ultra-Final
 on: [push, workflow_dispatch]
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       
-      - name: Preparing Project
+      - name: Force Clean and Create
         run: |
+          rm -rf app
           mkdir -p app/src/main/java/com/example/shardtunnel
+          
           echo "include ':app'" > settings.gradle
           
           cat <<EOF > build.gradle
@@ -37,42 +41,28 @@ jobs:
                   <activity android:name=".MainActivity" android:exported="true">
                       <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
                   </activity>
-                  <service android:name=".MyVpnService" android:permission="android.permission.BIND_VPN_SERVICE" android:exported="false">
-                      <intent-filter><action android:name="android.net.VpnService"/></intent-filter>
-                  </service>
               </application>
           </manifest>
           EOF
 
-          cat <<EOF > app/src/main/java/com/example/shardtunnel/MainActivity.kt
-          package com.example.shardtunnel
-          import android.os.Bundle
-          import android.widget.TextView
-          import androidx.appcompat.app.AppCompatActivity
-          class MainActivity : AppCompatActivity() {
-              override fun onCreate(s: Bundle?) {
-                  super.onCreate(s)
-                  setContentView(TextView(this).apply { text = "ShardTunnel: Готов к работе!"; textSize = 24f })
-              }
-          }
-          EOF
+          echo "package com.example.shardtunnel; import android.os.Bundle; import androidx.appcompat.app.AppCompatActivity; class MainActivity : AppCompatActivity() { override fun onCreate(s: Bundle?) { super.onCreate(s); setContentView(android.widget.TextView(this).apply { text = \"ПОБЕДА!\"; textSize = 30f }) } }" > app/src/main/java/com/example/shardtunnel/MainActivity.kt
 
-          echo "package com.example.shardtunnel; import android.net.VpnService; class MyVpnService : VpnService()" > app/src/main/java/com/example/shardtunnel/MyVpnService.kt
-
-      - name: setup java
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Final Assembly
+      - name: Build APK
         run: |
-          wget https://raw.githubusercontent.com/gradle/gradle/master/gradlew
-          chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          wget https://services.gradle.org/distributions/gradle-8.5-bin.zip
+          unzip gradle-8.5-bin.zip
+          export PATH=$PATH:$(pwd)/gradle-8.5/bin
+          gradle init --type basic --force
+          gradle assembleDebug --no-daemon
 
-      - name: Export APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: ShardTunnel-Build
+          name: ShardTunnel-Victory
           path: app/build/outputs/apk/debug/app-debug.apk
