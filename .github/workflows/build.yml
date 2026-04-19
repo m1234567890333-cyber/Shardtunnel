@@ -1,4 +1,4 @@
-name: ShardTunnel-Ultra-Final
+name: ShardTunnel-Last-Try
 on: [push, workflow_dispatch]
 
 jobs:
@@ -8,61 +8,39 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Force Clean and Create
-        run: |
-          rm -rf app
-          mkdir -p app/src/main/java/com/example/shardtunnel
-          
-          echo "include ':app'" > settings.gradle
-          
-          cat <<EOF > build.gradle
-          buildscript {
-              repositories { google(); mavenCentral() }
-              dependencies { classpath 'com.android.tools.build:gradle:8.2.2'; classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.22" }
-          }
-          allprojects { repositories { google(); mavenCentral() } }
-          EOF
-
-          cat <<EOF > app/build.gradle
-          plugins { id 'com.android.application'; id 'org.jetbrains.kotlin.android' }
-          android {
-              namespace 'com.example.shardtunnel'
-              compileSdk 34
-              defaultConfig { applicationId "com.example.shardtunnel"; minSdk 24; targetSdk 34; versionCode 1; versionName "1.0" }
-          }
-          dependencies { implementation 'androidx.appcompat:appcompat:1.6.1' }
-          EOF
-
-          cat <<EOF > app/src/main/AndroidManifest.xml
-          <?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-              <application android:label="ShardTunnel" android:theme="@style/Theme.AppCompat.Light.NoActionBar">
-                  <activity android:name=".MainActivity" android:exported="true">
-                      <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
-                  </activity>
-              </application>
-          </manifest>
-          EOF
-
-          echo "package com.example.shardtunnel; import android.os.Bundle; import androidx.appcompat.app.AppCompatActivity; class MainActivity : AppCompatActivity() { override fun onCreate(s: Bundle?) { super.onCreate(s); setContentView(android.widget.TextView(this).apply { text = \"ПОБЕДА!\"; textSize = 30f }) } }" > app/src/main/java/com/example/shardtunnel/MainActivity.kt
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
       - name: Build APK
         run: |
-          wget https://services.gradle.org/distributions/gradle-8.5-bin.zip
-          unzip gradle-8.5-bin.zip
-          export PATH=$PATH:$(pwd)/gradle-8.5/bin
-          gradle init --type basic --force
+          # Создаем структуру заново, чтобы точно не было ошибок
+          rm -rf app
+          mkdir -p app/src/main/java/com/example/shardtunnel
+          
+          echo "include ':app'" > settings.gradle
+          
+          echo "buildscript { repositories { google(); mavenCentral() }; dependencies { classpath 'com.android.tools.build:gradle:8.2.0' } }" > build.gradle
+          echo "allprojects { repositories { google(); mavenCentral() } }" >> build.gradle
+
+          cat <<EOF > app/build.gradle
+          plugins { id 'com.android.application' }
+          android {
+              namespace 'com.example.shardtunnel'
+              compileSdk 34
+              defaultConfig { applicationId "com.example.shardtunnel"; minSdk 24; targetSdk 34 }
+          }
+          EOF
+
+          echo '<?xml version="1.0" encoding="utf-8"?><manifest xmlns:android="http://schemas.android.com/apk/res/android"><application android:label="ShardTunnel"><activity android:name=".MainActivity" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity></application></manifest>' > app/src/main/AndroidManifest.xml
+          echo "package com.example.shardtunnel; import android.os.Bundle; import androidx.appcompat.app.AppCompatActivity; public class MainActivity extends AppCompatActivity { @Override protected void onCreate(Bundle s) { super.onCreate(s); } }" > app/src/main/java/com/example/shardtunnel/MainActivity.java
+
+          # Самое важное: используем встроенный в систему gradle
           gradle assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: ShardTunnel-Victory
+          name: ShardTunnel-Final
           path: app/build/outputs/apk/debug/app-debug.apk
