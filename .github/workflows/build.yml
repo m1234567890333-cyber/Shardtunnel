@@ -11,7 +11,6 @@ jobs:
         run: |
           mkdir -p app/src/main/java/com/example/shardtunnel
           
-          # 1. Создаем настройки сборки
           cat <<EOF > settings.gradle
           rootProject.name = "ShardTunnel"
           include ':app'
@@ -39,21 +38,56 @@ jobs:
           }
           EOF
 
-          # 2. Создаем Манифест
           cat <<EOF > app/src/main/AndroidManifest.xml
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <uses-permission android:name="android.permission.INTERNET" />
               <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
               <application android:label="ShardTunnel" android:theme="@style/Theme.AppCompat.Light.NoActionBar">
-                  <activity android:name=".MainActivity" android:exported="true">
+                  <activity android:name="com.example.shardtunnel.MainActivity" android:exported="true">
                       <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
                   </activity>
-                  <service android:name=".MyVpnService" android:permission="android.permission.BIND_VPN_SERVICE" android:exported="false">
+                  <service android:name="com.example.shardtunnel.MyVpnService" android:permission="android.permission.BIND_VPN_SERVICE" android:exported="false">
                       <intent-filter><action android:name="android.net.VpnService" /></intent-filter>
                   </service>
               </application>
           </manifest>
+          EOF
+
+          cat <<EOF > app/src/main/java/com/example/shardtunnel/MainActivity.kt
+          package com.example.shardtunnel
+          import android.content.Intent
+          import android.net.VpnService
+          import android.os.Bundle
+          import android.widget.*
+          import androidx.appcompat.app.AppCompatActivity
+          class MainActivity : AppCompatActivity() {
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  val l = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+                  val ip = EditText(this).apply { hint = "IP Server" }
+                  val b = Button(this).apply { text = "GO" }
+                  l.addView(ip); l.addView(b); setContentView(l)
+                  b.setOnClickListener { 
+                    val i = VpnService.prepare(this)
+                    if (i != null) startActivityForResult(i, 0) else start(ip.text.toString())
+                  }
+              }
+              fun start(s: String) { startService(Intent(this, MyVpnService::class.java).apply { putExtra("ip", s) }) }
+          }
+          EOF
+
+          cat <<EOF > app/src/main/java/com/example/shardtunnel/MyVpnService.kt
+          package com.example.shardtunnel
+          import android.net.VpnService
+          import android.content.Intent
+          class MyVpnService : VpnService() {
+              override fun onStartCommand(intent: Intent?, f: Int, sId: Int): Int {
+                  val builder = Builder().setSession("Shard").addAddress("10.0.0.2", 24).addRoute("0.0.0.0", 0)
+                  builder.establish()
+                  return START_STICKY
+              }
+          }
           EOF
 
       - name: set up JDK 17
@@ -64,11 +98,12 @@ jobs:
 
       - name: Build APK
         run: |
-          chmod +x gradlew || (wget https://raw.githubusercontent.com/gradle/gradle/master/gradlew && chmod +x gradlew)
+          wget https://raw.githubusercontent.com/gradle/gradle/master/gradlew
+          chmod +x gradlew
           ./gradlew assembleDebug
 
       - name: Upload Result
         uses: actions/upload-artifact@v4
         with:
-          name: ShardTunnel-Ready-APK
+          name: ShardTunnel-APK
           path: app/build/outputs/apk/debug/app-debug.apk
